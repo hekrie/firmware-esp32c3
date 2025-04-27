@@ -1,13 +1,15 @@
 /*****************************************************************************
-* | File      	:   EPD_3IN7.h
+* | File      	:	EPD_7in5_V2.h
 * | Author      :   Waveshare team
-* | Function    :   3.7inch e-paper
+* | Function    :   Electronic paper driver
 * | Info        :
 *----------------
-* |	This version:   V1.0
-* | Date        :   2020-08-10
-* | Info        :
-* -----------------------------------------------------------------------------
+* |	This version:   V3.0
+* | Date        :   2023-12-18
+* | Info        :   
+* 1.Remove:ImageBuff[EPD_HEIGHT * EPD_WIDTH / 8]
+* 2.Change:EPD_Display(UBYTE *Image)
+*   Need to pass parameters: pointer to cached data
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documnetation files (the "Software"), to deal
@@ -28,24 +30,26 @@
 # THE SOFTWARE.
 #
 ******************************************************************************/
-#ifndef __EPD_3IN7_H_
-#define __EPD_3IN7_H_
+#ifndef _EPD_7IN5_V2_H_
+#define _EPD_7IN5_V2_H_
 
 #include "DEV_Config.h"
 
+
 // Display resolution
-#define EPD_3IN7_WIDTH       280
-#define EPD_3IN7_HEIGHT      480 
+#define EPD_7IN5_V2_WIDTH       800
+#define EPD_7IN5_V2_HEIGHT      480
 
-void EPD_3IN7_4Gray_Clear(void);
-void EPD_3IN7_4Gray_Init(void);
-void EPD_3IN7_4Gray_Display(const UBYTE *Image);
-
-void EPD_3IN7_1Gray_Clear(void);
-void EPD_3IN7_1Gray_Init(void);
-void EPD_3IN7_1Gray_Display(const UBYTE *Image);
-void EPD_3IN7_1Gray_Display_Part(const UBYTE *Image, UWORD Xstart, UWORD Ystart, UWORD Xend, UWORD Yend);
-
-void EPD_3IN7_Sleep(void);
+UBYTE EPD_7IN5_V2_Init(void);
+UBYTE EPD_7IN5_V2_Init_Fast(void);
+UBYTE EPD_7IN5_V2_Init_Part(void);
+UBYTE EPD_7IN5_V2_Init_4Gray(void);
+void EPD_7IN5_V2_Clear(void);
+void EPD_7IN5_V2_ClearBlack(void);
+void EPD_7IN5_V2_Display(UBYTE *blackimage);
+void EPD_7IN5_V2_Display_Part(UBYTE *blackimage,UDOUBLE x_start, UDOUBLE y_start, UDOUBLE x_end, UDOUBLE y_end);
+void EPD_7IN5_V2_Display_4Gray(const UBYTE *Image);
+void EPD_7IN5_V2_WritePicture_4Gray(const UBYTE *Image);
+void EPD_7IN5_V2_Sleep(void);
 
 #endif

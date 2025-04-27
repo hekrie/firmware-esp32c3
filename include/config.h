@@ -45,14 +45,14 @@ enum WIFI_CONNECT_RETRY_TIME // Time to sleep before trying to connect to the Wi
     WIFI_THIRD_RETRY = 300
 };
 
-#define PIN_RESET 9
-#define PIN_INTERRUPT 2
-#define PIN_BATTERY 3
+//#define PIN_RESET 9
+#define PIN_INTERRUPT 2 // seeeduino boot button // 2 original
+#define PIN_BATTERY 0 // seeeduino // 3 // original
 
 #define BUTTON_HOLD_TIME 5000
 
 #define SERVER_MAX_RETRIES 3
 
-#define API_BASE_URL "https://trmnl.app"
+#define API_BASE_URL "http://192.168.1.52:4567" // byos local bnetwork
 
 #endif

@@ -27,7 +27,9 @@
 #include "logging_parcers.h"
 #include <regex>
 #include <string>
+#include <DEV_Config.h>
 
+#define LED_PIN 8
 
 bool pref_clear = false;
 
@@ -63,8 +65,8 @@ static void checkLogNotes(void);
 static void writeSpecialFunction(SPECIAL_FUNCTION function);
 static void writeImageToFile(const char *name, uint8_t *in_buffer, size_t size);
 static uint32_t getTime(void);
-static void showMessageWithLogo(MSG message_type);
-static void showMessageWithLogo(MSG message_type, String friendly_id, bool id, const char *fw_version, String message);
+static void showMessageWithLogo(MSG message_type, String additional_info);
+static void showMessageWithLogo(MSG message_type, String friendly_id, bool id, const char *fw_version, String message, String additional_info);
 static void wifiErrorDeepSleep();
 static uint8_t *storedLogoOrDefault(void);
 static bool saveCurrentFileName(String &name);
@@ -86,6 +88,21 @@ void wait_for_serial()
 #endif
 }
 
+void print_wakeup_reason() {
+  esp_sleep_wakeup_cause_t wakeup_reason;
+
+  wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch (wakeup_reason) {
+    case ESP_SLEEP_WAKEUP_EXT0:     Serial.println("Wakeup caused by external signal using RTC_IO"); break;
+    case ESP_SLEEP_WAKEUP_EXT1:     Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_TIMER:    Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD: Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP:      Serial.println("Wakeup caused by ULP program"); break;
+    default:                        Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
+  }
+}
+
 /**
  * @brief Function to init business logic module
  * @param none
@@ -96,12 +113,39 @@ void bl_init(void)
   WifiCaptivePortal.setDefaultBaseUrl(API_BASE_URL);
 
   Serial.begin(115200);
+  //wait_for_serial();
   Log.begin(LOG_LEVEL_VERBOSE, &Serial);
   Log_info("BL init success");
-  Log_info("Firware version %d.%d.%d", FW_MAJOR_VERSION, FW_MINOR_VERSION, FW_PATCH_VERSION);
+  Log_info("Firmware version %d.%d.%d", FW_MAJOR_VERSION, FW_MINOR_VERSION, FW_PATCH_VERSION);
+
+  // LUATOS
+  // gpio_hold_dis(GPIO_NUM_2);
+  // gpio_hold_dis(GPIO_NUM_3);
+  // gpio_hold_dis(GPIO_NUM_7);
+  // gpio_hold_dis(GPIO_NUM_8);
+  // gpio_hold_dis(GPIO_NUM_1);
+  // gpio_hold_dis(GPIO_NUM_10);
+  // gpio_hold_dis(GPIO_NUM_13);
+
+  // SEEEDUINO
+  gpio_hold_dis(GPIO_NUM_0);
+  gpio_hold_dis(GPIO_NUM_1);
+  gpio_hold_dis(GPIO_NUM_3);
+  gpio_hold_dis(GPIO_NUM_4);
+  gpio_hold_dis(GPIO_NUM_5);
+  gpio_hold_dis(GPIO_NUM_6);
+  gpio_hold_dis(GPIO_NUM_7);
+  gpio_hold_dis(GPIO_NUM_8);
+  gpio_hold_dis(GPIO_NUM_9);
+  gpio_hold_dis(GPIO_NUM_10);
+
   pins_init();
 
+  Serial.print("\nDefault ESP32 MAC Address: ");
+  Serial.println(WiFi.macAddress());
+
   wakeup_reason = esp_sleep_get_wakeup_cause();
+  print_wakeup_reason();
 
   Log.info("%s [%d]: preferences start\r\n", __FILE__, __LINE__);
   bool res = preferences.begin("data", false);
@@ -124,18 +168,28 @@ void bl_init(void)
   }
   Log.info("%s [%d]: preferences end\r\n", __FILE__, __LINE__);
 
-  #if SOC_GPIO_SUPPORT_DEEPSLEEP_WAKEUP 
+  #if SOC_GPIO_SUPPORT_DEEPSLEEP_WAKEUP
   if (wakeup_reason == ESP_SLEEP_WAKEUP_GPIO)
   #elif WAVESHARE_BOARD
   if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0)
   #endif
   {
+    Log.info("%s [%d]: Woke up due to button GPIO\r\n", __FILE__, __LINE__);
     auto button = read_button_presses();
     wait_for_serial();
     Log_info("GPIO wakeup (%d) -> button was read (%s)", wakeup_reason, ButtonPressResultNames[button]);
     switch (button)
     {
     case LongPress:
+      Log_info("Button long press. Wifi reset. Blink 5x fast.");
+      for (uint8_t i = 0; i < 5; i++)
+      {
+        Log_info("Blink.");
+        digitalWrite(LED_PIN, HIGH);
+        delay(100);
+        digitalWrite(LED_PIN, LOW);
+        delay(200);
+      }
       Log_info("WiFi reset");
       WifiCaptivePortal.resetSettings();
       break;
@@ -143,6 +197,15 @@ void bl_init(void)
       double_click = true;
       break;
     case NoAction:
+      Log_info("Button no action. Blink 2x.");
+      digitalWrite(LED_PIN, HIGH);
+      delay(300);
+      digitalWrite(LED_PIN, LOW);
+      delay(200);
+      digitalWrite(LED_PIN, HIGH);
+      delay(300);
+      digitalWrite(LED_PIN, LOW);
+      delay(200);
       break;
     }
     Log_info("button handling end");
@@ -153,8 +216,26 @@ void bl_init(void)
     Log_info("Non-GPIO wakeup (%d) -> didn't read buttons", wakeup_reason);
   }
 
+  // special function reading  
   if (double_click)
-  { // special function reading
+  {
+    Log_info("Double-click. blink 2x slow, 2x fast.");
+    digitalWrite(LED_PIN, HIGH);
+    delay(300);
+    digitalWrite(LED_PIN, LOW);
+    delay(300);
+    digitalWrite(LED_PIN, HIGH);
+    delay(300);
+    digitalWrite(LED_PIN, LOW);
+    delay(300);
+    digitalWrite(LED_PIN, HIGH);
+    delay(100);
+    digitalWrite(LED_PIN, LOW);
+    delay(100);
+    digitalWrite(LED_PIN, HIGH);
+    delay(100);
+    digitalWrite(LED_PIN, LOW);
+    delay(100);
     if (preferences.isKey(PREFERENCES_SF_KEY))
     {
       Log.info("%s [%d]: SF saved. Reading...\r\n", __FILE__, __LINE__);
@@ -200,18 +281,15 @@ void bl_init(void)
     }
     else
     {
-      Log_error("SF not saved");
+      Log_info("SF not saved.");
     }
   }
-  // EPD init
-  // EPD clear
-  Log.info("%s [%d]: Display init\r\n", __FILE__, __LINE__);
-  display_init();
 
   if (wakeup_reason != ESP_SLEEP_WAKEUP_TIMER)
   {
+    Log.info("%s [%d]: Start up, not from sleep\r\n", __FILE__, __LINE__);
     Log.info("%s [%d]: Display TRMNL logo start\r\n", __FILE__, __LINE__);
-    display_show_image(storedLogoOrDefault(), false);
+    display_show_image(storedLogoOrDefault(), false, 2);
     need_to_refresh_display = 1;
     preferences.putBool(PREFERENCES_DEVICE_REGISTRED_KEY, false);
     Log.info("%s [%d]: Display TRMNL logo end\r\n", __FILE__, __LINE__);
@@ -243,7 +321,7 @@ void bl_init(void)
 
       if (current_msg != WIFI_FAILED)
       {
-        showMessageWithLogo(WIFI_FAILED);
+        showMessageWithLogo(WIFI_FAILED,"");
         current_msg = WIFI_FAILED;
       }
 
@@ -259,14 +337,16 @@ void bl_init(void)
     Log.info("%s [%d]: WiFi NOT saved\r\n", __FILE__, __LINE__);
 
     char fw_version[20];
-
     sprintf(fw_version, "%d.%d.%d", FW_MAJOR_VERSION, FW_MINOR_VERSION, FW_PATCH_VERSION);
-
     String fw = fw_version;
 
     Log.info("%s [%d]: FW version %s\r\n", __FILE__, __LINE__, fw_version);
+    char mac_address[21];
+    sprintf(mac_address, "mac %s", WiFi.macAddress().c_str());
+    String mac_str = mac_address;
+    Log.info("%s [%d]: MAC %s\r\n", __FILE__, __LINE__, mac_address);
 
-    showMessageWithLogo(WIFI_CONNECT, "", false, fw.c_str(), "");
+    showMessageWithLogo(WIFI_CONNECT, "", false, fw.c_str(), "", mac_address);
     WifiCaptivePortal.setResetSettingsCallback(resetDeviceCredentials);
     res = WifiCaptivePortal.startPortal();
     if (!res)
@@ -275,7 +355,10 @@ void bl_init(void)
 
       WiFi.disconnect(true);
 
-      showMessageWithLogo(WIFI_FAILED);
+      char mac_address[21];
+      sprintf(mac_address, "mac %s", WiFi.macAddress().c_str());
+      String mac_str = mac_address;
+      showMessageWithLogo(WIFI_FAILED, mac_str);
 
       submit_log("connection to the new WiFi failed");
 
@@ -314,6 +397,7 @@ void bl_init(void)
   log_retry = true;
 
   // OTA checking, image checking and drawing
+  Log.info("%s [%d]: Now we go image checking and drawing\r\n", __FILE__, __LINE__);
   https_request_err_e request_result = downloadAndShow(WifiCaptivePortal.getServerURL().c_str());
   Log.info("%s [%d]: request result - %d\r\n", __FILE__, __LINE__, request_result);
 
@@ -370,7 +454,7 @@ void bl_init(void)
   {
     // show the image
     String friendly_id = preferences.getString(PREFERENCES_FRIENDLY_ID, PREFERENCES_FRIENDLY_ID_DEFAULT);
-    showMessageWithLogo(FRIENDLY_ID, friendly_id, true, "", String(message_buffer));
+    showMessageWithLogo(FRIENDLY_ID, friendly_id, true, "", String(message_buffer), "");
     need_to_refresh_display = 0;
   }
 
@@ -394,51 +478,51 @@ void bl_init(void)
   {
     if (WiFi.RSSI() > WIFI_CONNECTION_RSSI)
     {
-      showMessageWithLogo(API_ERROR);
+      showMessageWithLogo(API_ERROR, "");
     }
     else
     {
-      showMessageWithLogo(WIFI_WEAK);
+      showMessageWithLogo(WIFI_WEAK, "");
     }
   }
   break;
   case HTTPS_RESPONSE_CODE_INVALID:
   {
-    showMessageWithLogo(WIFI_INTERNAL_ERROR);
+    showMessageWithLogo(WIFI_INTERNAL_ERROR, "");
   }
   break;
   case HTTPS_UNABLE_TO_CONNECT:
   {
     if (WiFi.RSSI() > WIFI_CONNECTION_RSSI)
     {
-      showMessageWithLogo(API_ERROR);
+      showMessageWithLogo(API_ERROR, "");
     }
     else
     {
-      showMessageWithLogo(WIFI_WEAK);
+      showMessageWithLogo(WIFI_WEAK, "");
     }
   }
   break;
   case HTTPS_WRONG_IMAGE_FORMAT:
   {
-    showMessageWithLogo(BMP_FORMAT_ERROR);
+    showMessageWithLogo(BMP_FORMAT_ERROR, "");
   }
   break;
   case HTTPS_WRONG_IMAGE_SIZE:
   {
     if (WiFi.RSSI() > WIFI_CONNECTION_RSSI)
     {
-      showMessageWithLogo(API_SIZE_ERROR);
+      showMessageWithLogo(API_SIZE_ERROR, "");
     }
     else
     {
-      showMessageWithLogo(WIFI_WEAK);
+      showMessageWithLogo(WIFI_WEAK, "");
     }
   }
   break;
   case HTTPS_CLIENT_FAILED:
   {
-    showMessageWithLogo(WIFI_INTERNAL_ERROR);
+    showMessageWithLogo(WIFI_INTERNAL_ERROR, "");
   }
   break;
   case HTTPS_PLUGIN_NOT_ATTACHED:
@@ -500,7 +584,7 @@ static https_request_err_e downloadAndShow(const char *url)
 
     HTTPClient https;
     Log.info("%s [%d]: RSSI: %d\r\n", __FILE__, __LINE__, WiFi.RSSI());
-    Log.info("%s [%d]: [HTTPS] begin /api/display/ ...\r\n", __FILE__, __LINE__);
+    Log.info("%s [%d]: [HTTP] begin /api/display/ ...\r\n", __FILE__, __LINE__);
     char new_url[200];
     strcpy(new_url, url);
     strcat(new_url, "/api/display/");
@@ -544,20 +628,20 @@ static https_request_err_e downloadAndShow(const char *url)
 
     Log.info("%s [%d]: Added headers:\n\rID: %s\n\rSpecial function: %d\n\rAccess-Token: %s\n\rRefresh_Rate: %s\n\rBattery-Voltage: %s\n\rFW-Version: %s\r\nRSSI: %s\r\n", __FILE__, __LINE__, WifiCaptivePortal.getDeviceMac().c_str(), special_function, api_key.c_str(), String(refresh_rate).c_str(), String(battery_voltage).c_str(), fw_version.c_str(), String(WiFi.RSSI()));
 
-    if (!https.begin(*client, new_url))
+    if (!https.begin(new_url))
     {
-      Log.error("%s [%d]: [HTTPS] Unable to connect\r\n", __FILE__, __LINE__);
+      Log.error("%s [%d]: [HTTP] Unable to connect\r\n", __FILE__, __LINE__);
       submit_log("unable to connect to the API endpoint");
       return HTTPS_UNABLE_TO_CONNECT;
     }
 
     // HTTPS
-    Log.info("%s [%d]: [HTTPS] GET...\r\n", __FILE__, __LINE__);
-    Log.info("%s [%d]: [HTTPS] GET Route: %s\r\n", __FILE__, __LINE__, new_url);
+    Log.info("%s [%d]: [HTTP] GET...\r\n", __FILE__, __LINE__);
+    Log.info("%s [%d]: [HTTP] GET Route: %s\r\n", __FILE__, __LINE__, new_url);
     // start connection and send HTTP header
     String mac = WifiCaptivePortal.getDeviceMac().c_str();
     https.addHeader("ID", mac);
-    Log.info("%s [%d]: Device MAC address: %s\r\n", __FILE__, __LINE__, mac);
+    Log.info("%s [%d]: Device MAC address: %s\r\n", __FILE__, __LINE__, WifiCaptivePortal.getDeviceMac().c_str());
     
     https.addHeader("Access-Token", api_key);
     https.addHeader("Refresh-Rate", String(refresh_rate));
@@ -586,7 +670,7 @@ static https_request_err_e downloadAndShow(const char *url)
     // httpCode will be negative on error
     if (httpCode < 0)
     {
-      Log.error("%s [%d]: [HTTPS] GET... failed, error: %s\r\n", __FILE__, __LINE__, https.errorToString(httpCode).c_str());
+      Log.error("%s [%d]: [HTTP] GET... failed, error: %s\r\n", __FILE__, __LINE__, https.errorToString(httpCode).c_str());
       submit_log("HTTP Client failed with error: %s", https.errorToString(httpCode).c_str());
       return HTTPS_RESPONSE_CODE_INVALID;
     }
@@ -597,7 +681,7 @@ static https_request_err_e downloadAndShow(const char *url)
     // file not found at server
     if (!(httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY))
     {
-      Log.info("%s [%d]: [HTTPS] Unable to connect\r\n", __FILE__, __LINE__);
+      Log.info("%s [%d]: [HTTP] Unable to connect\r\n", __FILE__, __LINE__);
       result = HTTPS_REQUEST_FAILED;
       submit_log("returned code is not OK: %d", httpCode);
     }
@@ -608,6 +692,7 @@ static https_request_err_e downloadAndShow(const char *url)
     Log.info("%s [%d]: Free heap size: %d\r\n", __FILE__, __LINE__, ESP.getFreeHeap());
     Log.info("%s [%d]: Payload - %s\r\n", __FILE__, __LINE__, payload.c_str());
 
+    Log.info("%s [%d]: Parse payload...\r\n", __FILE__, __LINE__);
     auto apiResponse = parseResponse_apiDisplay(payload);
     bool error = apiResponse.outcome == ApiDisplayOutcome::DeserializationError;
 
@@ -959,7 +1044,7 @@ static https_request_err_e downloadAndShow(const char *url)
               case BMP_NO_ERR:
               {
                 // show the image
-                display_show_image(buffer, image_reverse);
+                display_show_image(buffer, image_reverse, 0);
                 need_to_refresh_display = 1;
               }
               break;
@@ -971,7 +1056,7 @@ static https_request_err_e downloadAndShow(const char *url)
             }
             else
             {
-              showMessageWithLogo(BMP_FORMAT_ERROR);
+              showMessageWithLogo(BMP_FORMAT_ERROR, "");
             }
           }
           else
@@ -1000,7 +1085,7 @@ static https_request_err_e downloadAndShow(const char *url)
               case BMP_NO_ERR:
               {
                 // show the image
-                display_show_image(buffer, image_reverse);
+                display_show_image(buffer, image_reverse, 0);
                 need_to_refresh_display = 1;
               }
               break;
@@ -1012,7 +1097,7 @@ static https_request_err_e downloadAndShow(const char *url)
             }
             else
             {
-              showMessageWithLogo(BMP_FORMAT_ERROR);
+              showMessageWithLogo(BMP_FORMAT_ERROR, "");
             }
           }
           else
@@ -1058,8 +1143,8 @@ static https_request_err_e downloadAndShow(const char *url)
     {
       status = false;
 
-      Log.info("%s [%d]: [HTTPS] Request to %s\r\n", __FILE__, __LINE__, filename);
-      if (!https.begin(*client, filename)) // HTTPS
+      Log.info("%s [%d]: [HTTP] Request to %s\r\n", __FILE__, __LINE__, filename);
+      if (!https.begin(filename)) // HTTPS
       {
         Log.error("%s [%d]: unable to connect\r\n", __FILE__, __LINE__);
 
@@ -1067,7 +1152,7 @@ static https_request_err_e downloadAndShow(const char *url)
 
         return HTTPS_UNABLE_TO_CONNECT;
       }
-      Log.info("%s [%d]: [HTTPS] GET..\r\n", __FILE__, __LINE__);
+      Log.info("%s [%d]: [HTTP] GET..\r\n", __FILE__, __LINE__);
       Log.info("%s [%d]: RSSI: %d\r\n", __FILE__, __LINE__, WiFi.RSSI());
       // start connection and send HTTP header
       int httpCode = https.GET();
@@ -1075,7 +1160,7 @@ static https_request_err_e downloadAndShow(const char *url)
       // httpCode will be negative on error
       if (httpCode < 0)
       {
-        Log.error("%s [%d]: [HTTPS] GET... failed, error: %d (%s)\r\n", __FILE__, __LINE__, httpCode, https.errorToString(httpCode).c_str());
+        Log.error("%s [%d]: [HTTP] GET... failed, error: %d (%s)\r\n", __FILE__, __LINE__, httpCode, https.errorToString(httpCode).c_str());
 
         submit_log("HTTP Client failed with error: %s", https.errorToString(httpCode).c_str());
 
@@ -1083,12 +1168,12 @@ static https_request_err_e downloadAndShow(const char *url)
       }
 
       // HTTP header has been send and Server response header has been handled
-      Log.error("%s [%d]: [HTTPS] GET... code: %d\r\n", __FILE__, __LINE__, httpCode);
+      Log.error("%s [%d]: [HTTP] GET... code: %d\r\n", __FILE__, __LINE__, httpCode);
       Log.info("%s [%d]: RSSI: %d\r\n", __FILE__, __LINE__, WiFi.RSSI());
       // file found at server
       if (httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY)
       {
-        Log.error("%s [%d]: [HTTPS] GET... failed, code: %d (%s)\r\n", __FILE__, __LINE__, httpCode, https.errorToString(httpCode).c_str());
+        Log.error("%s [%d]: [HTTP] GET... failed, code: %d (%s)\r\n", __FILE__, __LINE__, httpCode, https.errorToString(httpCode).c_str());
 
         submit_log("HTTPS returned code is not OK. Code: %d", httpCode);
         return HTTPS_REQUEST_FAILED;
@@ -1148,6 +1233,7 @@ static https_request_err_e downloadAndShow(const char *url)
       Log.info("%s [%d]: Received successfully\r\n", __FILE__, __LINE__);
 
       bool image_reverse = false;
+      Log.info("%s [%d]: Parse BMP...\r\n", __FILE__, __LINE__);
       bmp_err_e res = parseBMPHeader(buffer, image_reverse);
       Serial.println();
       String error = "";
@@ -1176,7 +1262,8 @@ static https_request_err_e downloadAndShow(const char *url)
           writeImageToFile("/last.bmp", buffer, sizeof(buffer));
         }
         // show the image
-        display_show_image(buffer, image_reverse);
+        display_show_image(buffer, image_reverse, 0);
+        //display_show_image(buffer, false, 0);
         need_to_refresh_display = 1;
 
         // Using filename from API responce
@@ -1253,14 +1340,14 @@ static void getDeviceCredentials(const char *url)
       // Add a scoping block for HTTPClient https to make sure it is destroyed before WiFiClientSecure *client is
       HTTPClient https;
 
-      Log.info("%s [%d]: [HTTPS] begin /api/setup/ ...\r\n", __FILE__, __LINE__);
+      Log.info("%s [%d]: [HTTP] begin /api/setup/ ...\r\n", __FILE__, __LINE__);
       char new_url[200];
       strcpy(new_url, url);
       strcat(new_url, "/api/setup/");
-      if (https.begin(*client, new_url))
+      if (https.begin(new_url))
       { // HTTPS
         Log.info("%s [%d]: RSSI: %d\r\n", __FILE__, __LINE__, WiFi.RSSI());
-        Log.info("%s [%d]: [HTTPS] GET...\r\n", __FILE__, __LINE__);
+        Log.info("%s [%d]: [HTTP] GET...\r\n", __FILE__, __LINE__);
         // start connection and send HTTP header
         String mac = WifiCaptivePortal.getDeviceMac().c_str();
 
@@ -1320,7 +1407,7 @@ static void getDeviceCredentials(const char *url)
             else if (url_status == 404 && apiResponse.message == "MAC Address not registered")
             {
               Log.info("%s [%d]: MAC Address is not registered on server\r\n", __FILE__, __LINE__);
-              showMessageWithLogo(MAC_NOT_REGISTERED);
+              showMessageWithLogo(MAC_NOT_REGISTERED, "");
 
               preferences.putUInt(PREFERENCES_SLEEP_TIME_KEY, SLEEP_TIME_TO_SLEEP);
 
@@ -1335,29 +1422,29 @@ static void getDeviceCredentials(const char *url)
           }
           else
           {
-            Log.info("%s [%d]: [HTTPS] Unable to connect\r\n", __FILE__, __LINE__);
+            Log.info("%s [%d]: [HTTP] Unable to connect\r\n", __FILE__, __LINE__);
 
             if (WiFi.RSSI() > WIFI_CONNECTION_RSSI)
             {
-              showMessageWithLogo(API_ERROR);
+              showMessageWithLogo(API_ERROR, "");
             }
             else
             {
-              showMessageWithLogo(WIFI_WEAK);
+              showMessageWithLogo(WIFI_WEAK, "");
             }
             submit_log("returned code is not OK. Code - %d", httpCode);
           }
         }
         else
         {
-          Log.error("%s [%d]: [HTTPS] GET... failed, error: %s\r\n", __FILE__, __LINE__, https.errorToString(httpCode).c_str());
+          Log.error("%s [%d]: [HTTP] GET... failed, error: %s\r\n", __FILE__, __LINE__, https.errorToString(httpCode).c_str());
           if (WiFi.RSSI() > WIFI_CONNECTION_RSSI)
           {
-            showMessageWithLogo(API_ERROR);
+            showMessageWithLogo(API_ERROR, "");
           }
           else
           {
-            showMessageWithLogo(WIFI_WEAK);
+            showMessageWithLogo(WIFI_WEAK, "");
           }
           submit_log("HTTP Client failed with error: %s", https.errorToString(httpCode).c_str());
         }
@@ -1366,8 +1453,8 @@ static void getDeviceCredentials(const char *url)
       }
       else
       {
-        Log.error("%s [%d]: [HTTPS] Unable to connect\r\n", __FILE__, __LINE__);
-        showMessageWithLogo(WIFI_INTERNAL_ERROR);
+        Log.error("%s [%d]: [HTTP] Unable to connect\r\n", __FILE__, __LINE__);
+        showMessageWithLogo(WIFI_INTERNAL_ERROR, "");
         submit_log("unable to connect to the API");
       }
       Log.info("%s [%d]: status - %d\r\n", __FILE__, __LINE__, status);
@@ -1376,10 +1463,10 @@ static void getDeviceCredentials(const char *url)
         status = false;
         Log.info("%s [%d]: filename - %s\r\n", __FILE__, __LINE__, filename);
 
-        Log.info("%s [%d]: [HTTPS] Request to %s\r\n", __FILE__, __LINE__, filename);
-        if (https.begin(*client, filename))
+        Log.info("%s [%d]: [HTTP] Request to %s\r\n", __FILE__, __LINE__, filename);
+        if (https.begin(filename))
         { // HTTPS
-          Log.info("%s [%d]: [HTTPS] GET..\r\n", __FILE__, __LINE__);
+          Log.info("%s [%d]: [HTTP] GET..\r\n", __FILE__, __LINE__);
           // start connection and send HTTP header
           int httpCode = https.GET();
 
@@ -1387,7 +1474,7 @@ static void getDeviceCredentials(const char *url)
           if (httpCode > 0)
           {
             // HTTP header has been send and Server response header has been handled
-            Log.error("%s [%d]: [HTTPS] GET... code: %d\r\n", __FILE__, __LINE__, httpCode);
+            Log.error("%s [%d]: [HTTP] GET... code: %d\r\n", __FILE__, __LINE__, httpCode);
             // file found at server
             if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
             {
@@ -1410,7 +1497,7 @@ static void getDeviceCredentials(const char *url)
 
                 // show the image
                 String friendly_id = preferences.getString(PREFERENCES_FRIENDLY_ID, PREFERENCES_FRIENDLY_ID_DEFAULT);
-                display_show_msg(buffer, FRIENDLY_ID, friendly_id, true, "", String(message_buffer));
+                display_show_msg(buffer, FRIENDLY_ID, friendly_id, true, "", String(message_buffer), "");
                 need_to_refresh_display = 0;
               }
               else
@@ -1418,40 +1505,40 @@ static void getDeviceCredentials(const char *url)
                 Log.error("%s [%d]: Receiving failed. Readed: %d\r\n", __FILE__, __LINE__, counter);
                 if (WiFi.RSSI() > WIFI_CONNECTION_RSSI)
                 {
-                  showMessageWithLogo(API_SIZE_ERROR);
+                  showMessageWithLogo(API_SIZE_ERROR, "");
                 }
                 else
                 {
-                  showMessageWithLogo(WIFI_WEAK);
+                  showMessageWithLogo(WIFI_WEAK, "");
                 }
                 submit_log("Receiving failed. Readed: %d", counter);
               }
             }
             else
             {
-              Log.error("%s [%d]: [HTTPS] GET... failed, error: %s\r\n", __FILE__, __LINE__, https.errorToString(httpCode).c_str());
+              Log.error("%s [%d]: [HTTP] GET... failed, error: %s\r\n", __FILE__, __LINE__, https.errorToString(httpCode).c_str());
               https.end();
               if (WiFi.RSSI() > WIFI_CONNECTION_RSSI)
               {
-                showMessageWithLogo(API_ERROR);
+                showMessageWithLogo(API_ERROR, "");
               }
               else
               {
-                showMessageWithLogo(WIFI_WEAK);
+                showMessageWithLogo(WIFI_WEAK, "");
               }
               submit_log("HTTPS received code is not OK. Code: %d", httpCode);
             }
           }
           else
           {
-            Log.error("%s [%d]: [HTTPS] GET... failed, error: %s\r\n", __FILE__, __LINE__, https.errorToString(httpCode).c_str());
+            Log.error("%s [%d]: [HTTP] GET... failed, error: %s\r\n", __FILE__, __LINE__, https.errorToString(httpCode).c_str());
             if (WiFi.RSSI() > WIFI_CONNECTION_RSSI)
             {
-              showMessageWithLogo(API_ERROR);
+              showMessageWithLogo(API_ERROR, "");
             }
             else
             {
-              showMessageWithLogo(WIFI_WEAK);
+              showMessageWithLogo(WIFI_WEAK, "");
             }
             submit_log("HTTP Client failed with error: %s", https.errorToString(httpCode).c_str());
           }
@@ -1461,11 +1548,11 @@ static void getDeviceCredentials(const char *url)
           Log.error("%s [%d]: unable to connect\r\n", __FILE__, __LINE__);
           if (WiFi.RSSI() > WIFI_CONNECTION_RSSI)
           {
-            showMessageWithLogo(API_ERROR);
+            showMessageWithLogo(API_ERROR,"");
           }
           else
           {
-            showMessageWithLogo(WIFI_WEAK);
+            showMessageWithLogo(WIFI_WEAK, "");
           }
           submit_log("unable to connect to the API");
         }
@@ -1478,7 +1565,7 @@ static void getDeviceCredentials(const char *url)
   else
   {
     Log.error("%s [%d]: Unable to create client\r\n", __FILE__, __LINE__);
-    showMessageWithLogo(WIFI_INTERNAL_ERROR);
+    showMessageWithLogo(WIFI_INTERNAL_ERROR, "");
     submit_log("unable to create the client");
   }
 }
@@ -1515,7 +1602,7 @@ static void checkAndPerformFirmwareUpdate(void)
   {
     client->setInsecure();
     HTTPClient https;
-    if (https.begin(*client, binUrl))
+    if (https.begin(binUrl))
     {
       int httpCode = https.GET();
       if (httpCode == HTTP_CODE_OK)
@@ -1527,31 +1614,31 @@ static void checkAndPerformFirmwareUpdate(void)
         if (Update.begin(contentLength))
         {
           Log.info("%s [%d]: Firmware update start\r\n", __FILE__, __LINE__);
-          showMessageWithLogo(FW_UPDATE);
+          showMessageWithLogo(FW_UPDATE, "");
 
           if (Update.writeStream(https.getStream()))
           {
             if (Update.end(true))
             {
               Log.info("%s [%d]: Firmware update successful. Rebooting...\r\n", __FILE__, __LINE__);
-              showMessageWithLogo(FW_UPDATE_SUCCESS);
+              showMessageWithLogo(FW_UPDATE_SUCCESS, "");
             }
             else
             {
               Log.fatal("%s [%d]: Firmware update failed!\r\n", __FILE__, __LINE__);
-              showMessageWithLogo(FW_UPDATE_FAILED);
+              showMessageWithLogo(FW_UPDATE_FAILED, "");
             }
           }
           else
           {
             Log.fatal("%s [%d]: Write to firmware update stream failed!\r\n", __FILE__, __LINE__);
-            showMessageWithLogo(FW_UPDATE_FAILED);
+            showMessageWithLogo(FW_UPDATE_FAILED, "");
           }
         }
         else
         {
           Log.fatal("%s [%d]: Begin firmware update failed!\r\n", __FILE__, __LINE__);
-          showMessageWithLogo(FW_UPDATE_FAILED);
+          showMessageWithLogo(FW_UPDATE_FAILED, "");
         }
       }
       else
@@ -1559,11 +1646,11 @@ static void checkAndPerformFirmwareUpdate(void)
         Log.fatal("%s [%d]: HTTP GET failed!\r\n", __FILE__, __LINE__);
         if (WiFi.RSSI() > WIFI_CONNECTION_RSSI)
         {
-          showMessageWithLogo(API_ERROR);
+          showMessageWithLogo(API_ERROR, "");
         }
         else
         {
-          showMessageWithLogo(WIFI_WEAK);
+          showMessageWithLogo(WIFI_WEAK, "");
         }
       }
       https.end();
@@ -1579,20 +1666,63 @@ static void checkAndPerformFirmwareUpdate(void)
  */
 static void goToSleep(void)
 {
+  Log_info("%s [%d]: going to sleep now...\r\n", __FILE__, __LINE__);
   WiFi.disconnect(true);
   filesystem_deinit();
-  uint32_t time_to_sleep = SLEEP_TIME_TO_SLEEP;
+  uint32_t time_to_sleep = (uint32_t) SLEEP_TIME_TO_SLEEP;
   if (preferences.isKey(PREFERENCES_SLEEP_TIME_KEY))
     time_to_sleep = preferences.getUInt(PREFERENCES_SLEEP_TIME_KEY, SLEEP_TIME_TO_SLEEP);
-  Log.info("%s [%d]: time to sleep - %d\r\n", __FILE__, __LINE__, time_to_sleep);
+  Log_info("%s [%d]: wake up reason before was %s. (timer is 4)\r\n", __FILE__, __LINE__, String(wakeup_reason));
+  Log.info("%s [%d]: time to sleep now is %d s\r\n", __FILE__, __LINE__, time_to_sleep);
   preferences.putUInt(PREFERENCES_LAST_SLEEP_TIME, getTime());
   preferences.end();
-  esp_sleep_enable_timer_wakeup(time_to_sleep * SLEEP_uS_TO_S_FACTOR);
+  esp_sleep_enable_timer_wakeup((uint64_t)time_to_sleep * SLEEP_uS_TO_S_FACTOR);
+  digitalWrite(EPD_SCK_PIN, LOW);
+  digitalWrite(EPD_MOSI_PIN, LOW);
+  digitalWrite(EPD_CS_PIN, LOW);
+  digitalWrite(EPD_RST_PIN, LOW);
+  digitalWrite(EPD_DC_PIN, LOW);
+  digitalWrite(EPD_BUSY_PIN, LOW);
+  digitalWrite(EPD_PWR_PIN, LOW);
+  digitalWrite(LED_PIN, LOW);
+  digitalWrite(PIN_BATTERY, LOW);
+  digitalWrite(PIN_INTERRUPT, HIGH);
+
+  // LUATOS
+  // gpio_hold_en(GPIO_NUM_2);
+  // gpio_hold_en(GPIO_NUM_3);
+  // gpio_hold_en(GPIO_NUM_7);
+  // gpio_hold_en(GPIO_NUM_8);
+  // gpio_hold_en(GPIO_NUM_1);
+  // gpio_hold_en(GPIO_NUM_10);
+  // gpio_hold_en(GPIO_NUM_13);
+
+  // SEEEDUINO
+  gpio_hold_en(GPIO_NUM_0);
+  gpio_hold_en(GPIO_NUM_1);
+  gpio_hold_en(GPIO_NUM_3);
+  gpio_hold_en(GPIO_NUM_4);
+  gpio_hold_en(GPIO_NUM_5);
+  gpio_hold_en(GPIO_NUM_6);
+  gpio_hold_en(GPIO_NUM_7);
+  gpio_hold_en(GPIO_NUM_8);
+  gpio_hold_en(GPIO_NUM_9);
+  gpio_hold_en(GPIO_NUM_10);
+
+  gpio_deep_sleep_hold_en();
+
   #if SOC_GPIO_SUPPORT_DEEPSLEEP_WAKEUP
-  esp_deep_sleep_enable_gpio_wakeup(1 << PIN_INTERRUPT, ESP_GPIO_WAKEUP_GPIO_HIGH);
+  Log_info("%s [%d]: Enable button wakeup...\r\n", __FILE__, __LINE__);
+  esp_deep_sleep_enable_gpio_wakeup(1 << PIN_INTERRUPT, ESP_GPIO_WAKEUP_GPIO_LOW);
   #elif WAVESHARE_BOARD
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_32, HIGH);
   #endif
+
+  if(Serial)
+  {
+    Log_info("%s [%d]: flush serial...\r\n", __FILE__, __LINE__);
+    Serial.flush();
+  }
   esp_deep_sleep_start();
 }
 
@@ -1640,10 +1770,13 @@ static float readBatteryVoltage(void)
   {
     adc += analogReadMilliVolts(PIN_BATTERY);
   }
+  Log.info("%s [%d]: adc_total= %d\r\n", __FILE__, __LINE__, adc);
 
   int32_t sensorValue = (adc / 128) * 2;
+  Log.info("%s [%d]: sensor_value=(adc_total/128)*2= %d\r\n", __FILE__, __LINE__, sensorValue);
 
   float voltage = sensorValue / 1000.0;
+  Log.info("%s [%d]: voltage=sensor_value/1000= %d\r\n", __FILE__, __LINE__, sensorValue);
   return voltage;
 }
 
@@ -1691,6 +1824,8 @@ static uint32_t getTime(void)
 
 static void checkLogNotes(void)
 {
+  Log.info("%s [%d]: Log notes...\r\n", __FILE__, __LINE__);
+
   String log;
   gather_stored_logs(log, preferences);
 
@@ -1716,7 +1851,7 @@ static void checkLogNotes(void)
   }
   else
   {
-    Log.info("%s [%d]: no needed to send the log\r\n", __FILE__, __LINE__);
+    Log.info("%s [%d]: log is empty. not needed to send the log\r\n", __FILE__, __LINE__);
   }
   if (result == true)
   {
@@ -1768,16 +1903,16 @@ static void writeSpecialFunction(SPECIAL_FUNCTION function)
   }
 }
 
-static void showMessageWithLogo(MSG message_type)
+static void showMessageWithLogo(MSG message_type, String additional_info)
 {
-  display_show_msg(storedLogoOrDefault(), message_type);
+  display_show_msg(storedLogoOrDefault(), message_type, additional_info);
   need_to_refresh_display = 1;
   preferences.putBool(PREFERENCES_DEVICE_REGISTRED_KEY, false);
 }
 
-static void showMessageWithLogo(MSG message_type, String friendly_id, bool id, const char *fw_version, String message)
+static void showMessageWithLogo(MSG message_type, String friendly_id, bool id, const char *fw_version, String message, String additional_info)
 {
-  display_show_msg(storedLogoOrDefault(), message_type, friendly_id, id, fw_version, message);
+  display_show_msg(storedLogoOrDefault(), message_type, friendly_id, id, fw_version, message, additional_info);
   need_to_refresh_display = 1;
   preferences.putBool(PREFERENCES_DEVICE_REGISTRED_KEY, false);
 }

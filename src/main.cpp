@@ -13,6 +13,7 @@ void setup()
   //Fix for crash on network initialization
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   #endif
+
   bl_init();
 }
 

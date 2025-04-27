@@ -40,15 +40,15 @@ void display_reset(void);
  * @param reverse shows if the color scheme is reverse 
  * @return none
  */
-void display_show_image(uint8_t * image_buffer, bool reverse);
+void display_show_image(uint8_t * image_buffer, bool reverse, uint8_t mirror);
 
 /**
  * @brief Function to show the image with message on the display
  * @param image_buffer pointer to the uint8_t image buffer
  * @param message_type type of message that will show on the screen
- * @return none
+ * @param additional_info an additional short string
  */
-void display_show_msg(uint8_t * image_buffer, MSG message_type);
+void display_show_msg(uint8_t * image_buffer, MSG message_type, String additional_info);
 
 /**
  * @brief Function to show the image with message on the display
@@ -58,9 +58,10 @@ void display_show_msg(uint8_t * image_buffer, MSG message_type);
  * @param id shows if ID exists
  * @param fw_version version of the firmaware
  * @param message additional message
+ * @param additional_info an additional short string
  * @return none
  */
-void display_show_msg(uint8_t * image_buffer, MSG message_type, String friendly_id, bool id, const char * fw_version, String message);
+void display_show_msg(uint8_t * image_buffer, MSG message_type, String friendly_id, bool id, const char * fw_version, String message, String additional_info);
 
 /**
  * @brief Function to got the display to the sleep

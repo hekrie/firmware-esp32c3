@@ -71,7 +71,7 @@ void store_log(const char *log_buffer, size_t size, Preferences &preferences)
 
 void gather_stored_logs(String &log, Preferences &preferences)
 {
-
+  Log.info("%s [%d]: Collect log notes...\r\n", __FILE__, __LINE__);
   for (uint8_t i = 0; i < LOG_MAX_NOTES_NUMBER; i++)
   {
     String key = PREFERENCES_LOG_KEY + String(i);
@@ -95,7 +95,7 @@ void gather_stored_logs(String &log, Preferences &preferences)
 
 void clear_stored_logs(Preferences &preferences)
 {
-
+  Log.info("%s [%d]: Clear log notes...\r\n", __FILE__, __LINE__);
   for (uint8_t i = 0; i < LOG_MAX_NOTES_NUMBER; i++)
   {
     String key = PREFERENCES_LOG_KEY + String(i);

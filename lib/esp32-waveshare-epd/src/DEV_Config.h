@@ -44,30 +44,28 @@
 /**
  * GPIO config
 **/
-#if WAVESHARE_BOARD
-#define EPD_SCK_PIN  13
-#define EPD_MOSI_PIN 14
 
-#define EPD_CS_PIN   15
-#define EPD_RST_PIN  26
-#define EPD_DC_PIN   27
-#define EPD_BUSY_PIN 25
+// LUATOS
+// #define EPD_SCK_PIN  2
+// #define EPD_MOSI_PIN 3
+// #define EPD_CS_PIN   7
+// #define EPD_RST_PIN  8
+// #define EPD_DC_PIN   1 // 12 is LED
+// #define EPD_BUSY_PIN 10
+// #define EPD_PWR_PIN  13 // with LED
+
+// SEEEDUINO
+#define EPD_SCK_PIN  4
+#define EPD_MOSI_PIN 6
+#define EPD_CS_PIN   7
+#define EPD_RST_PIN  3
+#define EPD_DC_PIN   1 // 8 is LED
+#define EPD_BUSY_PIN 10
+#define EPD_PWR_PIN  5 // 0 // 0 works // with LED
+
 
 #define GPIO_PIN_SET   1
 #define GPIO_PIN_RESET 0
-
-#elif !WAVESHARE_BOARD
-
-#define EPD_SCK_PIN  7
-#define EPD_MOSI_PIN 8
-#define EPD_CS_PIN   6
-#define EPD_RST_PIN  10
-#define EPD_DC_PIN   5
-#define EPD_BUSY_PIN 4
-
-#define GPIO_PIN_SET   1
-#define GPIO_PIN_RESET 0
-#endif
 
 /**
  * GPIO read and write
@@ -82,6 +80,9 @@
 
 /*------------------------------------------------------------------------------------------------------*/
 UBYTE DEV_Module_Init(void);
+void GPIO_Mode(UWORD GPIO_Pin, UWORD Mode);
 void DEV_SPI_WriteByte(UBYTE data);
+UBYTE DEV_SPI_ReadByte();
+void DEV_SPI_Write_nByte(UBYTE *pData, UDOUBLE len);
 
 #endif

@@ -10,6 +10,7 @@
  */
 bool filesystem_init(void)
 {
+    Log.info("%s [%d]: File system init\r\n", __FILE__, __LINE__);
     if (!SPIFFS.begin(true))
     {
         Log.fatal("%s [%d]: Failed to mount SPIFFS\r\n", __FILE__, __LINE__);
@@ -58,7 +59,7 @@ bool filesystem_read_from_file(const char *name, uint8_t *out_buffer, size_t siz
     }
     else
     {
-        Log.error("%s [%d]: file %s doesn\'t exists\r\n", __FILE__, __LINE__, name);
+        Log.error("%s [%d]: file %s not found\r\n", __FILE__, __LINE__, name);
         return false;
     }
 }

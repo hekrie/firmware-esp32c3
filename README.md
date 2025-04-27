@@ -3,6 +3,14 @@
 ~created for the [TRMNL](https://usetrmnl.com) e-ink display.~
 
 This fork is created for the Waveshare ESP32 and 7.5inch e-ink display.
+
+## Fork to support Xiao Seeed ESP32C3 and Luatos Core ESP32-C3
+
+- support Waveshare 7in5V2
+- support push button (short press triggers refresh, long press resets wifi)
+- show MAC address on screen during wifi setup
+- configuration is for Xiao Seeed ESP32C3, configuration for Luatos Core ESP32-C3 is commented out (change files config.h, DEV_Config.h, platformio.ini)
+
 ### Features
 
 - set mac address

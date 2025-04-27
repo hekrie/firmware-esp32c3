@@ -78,7 +78,7 @@
 #ifndef __GUI_PAINT_H
 #define __GUI_PAINT_H
 
-#include "utility/Debug.h"
+#include "Debug.h"
 #include "DEV_Config.h"
 #include "fonts.h"
 
@@ -189,7 +189,7 @@ typedef struct {
 extern PAINT_TIME sPaint_time;
 
 //init and Clear
-void Paint_NewImage(UBYTE *image, UWORD Width, UWORD Height, UWORD Rotate, UWORD Color);
+void Paint_NewImage(UBYTE *image, UWORD Width, UWORD Height, UWORD Rotate, UWORD Color, UBYTE mirror);
 void Paint_SelectImage(UBYTE *image);
 void Paint_SetRotate(UWORD Rotate);
 void Paint_SetMirroring(UBYTE mirror);
