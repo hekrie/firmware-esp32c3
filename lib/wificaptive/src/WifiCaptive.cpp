@@ -274,6 +274,7 @@ uint8_t WifiCaptive::connect(String ssid, String pass)
 
     if (ssid != "")
     {
+        Log.info("Connecting to network: %s\r\n", ssid);
         WiFi.enableSTA(true);
         WiFi.begin(ssid.c_str(), pass.c_str());
         connRes = waitForConnectResult();
@@ -415,6 +416,7 @@ std::vector<WifiCaptive::Network> WifiCaptive::getScannedUniqueNetworks(bool run
     int n = WiFi.scanComplete();
     if (runScan == true)
     {
+        Log.info("Scanning...");
         WiFi.scanNetworks(true);
         delay(100);
         int n = WiFi.scanComplete();
@@ -435,6 +437,7 @@ std::vector<WifiCaptive::Network> WifiCaptive::getScannedUniqueNetworks(bool run
     }
 
     n = WiFi.scanComplete();
+    Log.info("Scan complete.");
 
     // Process each found network
     for (int i = 0; i < n; ++i)
@@ -443,6 +446,7 @@ std::vector<WifiCaptive::Network> WifiCaptive::getScannedUniqueNetworks(bool run
         {
             String ssid = WiFi.SSID(i);
             int32_t rssi = WiFi.RSSI(i);
+            Log.info("Processing found network: %s (%d)\r\n", ssid, rssi);
             bool open = WiFi.encryptionType(i);
             bool found = false;
             for (auto &network : uniqueNetworks)
@@ -541,7 +545,7 @@ bool WifiCaptive::autoConnect()
 
     if (_lastUsed.ssid != "")
     {
-        Log.info("Trying to connect to last used %s...\r\n", _lastUsed.ssid.c_str());
+        Log.info("Trying to connect to last used network: %s with key: %s\r\n", _lastUsed.ssid.c_str(), _lastUsed.pswd.c_str());
         WiFi.setSleep(0);
         WiFi.setMinSecurity(WIFI_AUTH_OPEN);
         WiFi.mode(WIFI_STA);
@@ -553,15 +557,17 @@ bool WifiCaptive::autoConnect()
             Log.info("Connected to %s\r\n", _lastUsed.ssid.c_str());
             return true;
         }
+        Log.info("Connection to network: %s failed\r\n", _lastUsed.ssid.c_str());
         WiFi.disconnect();
     }
 
+    Log.info("Scanning for networks...\r\n");
     std::vector<Network> scanResults = getScannedUniqueNetworks(true);
     std::vector<WifiCaptive::WifiCredentials> sortedNetworks = matchNetworks(scanResults, _savedWifis);
     // if no networks found, try to connect to saved wifis
     if (sortedNetworks.size() == 0)
     {
-        Log.info("No matched networks...\r\n");
+        Log.info("No networks found...\r\n");
         sortedNetworks = std::vector<WifiCredentials>(_savedWifis, _savedWifis + WIFI_MAX_SAVED_CREDS);
     }
 

@@ -17,15 +17,15 @@ bool submitLogToApi(LogApiInput &input, const char *api_url)
     {
       // Add a scoping block for HTTPClient https to make sure it is destroyed before WiFiClientSecure *client is
       HTTPClient https;
-      Log_info("[HTTPS] begin /api/log ...");
+      Log_info("[HTTP] begin /api/log ...");
 
       char new_url[200];
       strcpy(new_url, api_url);
       strcat(new_url, "/api/log");
       
-      if (https.begin(*client, new_url))
+      if (https.begin(new_url))
       { // HTTPS
-        Log_info("[HTTPS] POST...");
+        Log_info("[HTTP] POST...");
 
         https.addHeader("Accept", "application/json");
         https.addHeader("Access-Token", input.api_key);
@@ -38,17 +38,17 @@ bool submitLogToApi(LogApiInput &input, const char *api_url)
         if (httpCode > 0)
         {
           // HTTP header has been send and Server response header has been handled
-          Log_info("[HTTPS] POST... code: %d", httpCode);
+          Log_info("[HTTP] POST... code: %d", httpCode);
           // file found at server
           if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_NO_CONTENT)
           {
-            Log_info("[HTTPS] POST OK");
+            Log_info("[HTTP] POST OK");
             result = true;
           }
         }
         else
         {
-          Log_error("[HTTPS] POST... failed, error: %d %s", httpCode, https.errorToString(httpCode).c_str());
+          Log_error("[HTTP] POST... failed, error: %d %s", httpCode, https.errorToString(httpCode).c_str());
           result = false;
         }
 
@@ -56,7 +56,7 @@ bool submitLogToApi(LogApiInput &input, const char *api_url)
       }
       else
       {
-        Log_error("[HTTPS] Unable to connect");
+        Log_error("[HTTP] Unable to connect");
         result = false;
       }
     }
@@ -65,7 +65,7 @@ bool submitLogToApi(LogApiInput &input, const char *api_url)
   }
   else
   {
-    Log_error("[HTTPS] Unable to create client");
+    Log_error("[HTTP] Unable to create client");
     result = false;
   }
   return result;

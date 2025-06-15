@@ -65,30 +65,36 @@ class WifiCaptive {
         uint8_t waitForConnectResult(uint32_t timeout);
         uint8_t waitForConnectResult();
         void readWifiCredentials();
-        void saveWifiCredentials(String ssid, String pass);
         void saveLastUsed(String ssid, String pass);
-        void saveDeviceConfig(bool byod, const String &deviceId, bool byos, const String &serverUrl);
         std::vector<WifiCredentials> matchNetworks(std::vector<Network> &scanResults, WifiCaptive::WifiCredentials wifiCredentials[]);
         std::vector<Network> getScannedUniqueNetworks(bool runScan);
         std::vector<Network> combineNetworks(std::vector<Network> &scanResults, WifiCaptive::WifiCredentials wifiCredentials[]);
         
-
-    public:
+        
+        public:
         /// @brief Starts WiFi configuration portal.
         /// @return True if successfully connected to provided SSID, false otherwise.
         bool startPortal();
-
+        
         /// @brief Checks if any ssid is saved
         /// @return True if any ssis is saved, false otherwise
         bool isSaved();
+        
+        /// @brief Save credentials
+        /// @return
+        void saveWifiCredentials(String ssid, String pass);
+        
+        /// @brief Save config
+        /// @return
+        void saveDeviceConfig(bool byod, const String &deviceId, bool byos, const String &serverUrl);
 
         /// @brief Resets all saved credentials
         void resetSettings();
-
+        
         /// @brief sets the function callback that is triggered when uses performs soft reset
         /// @param func reset callback
         void setResetSettingsCallback(std::function<void()> func);
-
+        
         /// @brief Connects to the saved SSID with the best signal strength
         /// @return True if successfully connected to saved SSID, false otherwise.
         bool autoConnect();

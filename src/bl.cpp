@@ -299,6 +299,7 @@ void bl_init(void)
   // Mount SPIFFS
   filesystem_init();
 
+
   WiFi.mode(WIFI_STA); // explicitly set mode, esp defaults to STA+AP
   if (WifiCaptivePortal.isSaved())
   {
@@ -1175,7 +1176,7 @@ static https_request_err_e downloadAndShow(const char *url)
       {
         Log.error("%s [%d]: [HTTP] GET... failed, code: %d (%s)\r\n", __FILE__, __LINE__, httpCode, https.errorToString(httpCode).c_str());
 
-        submit_log("HTTPS returned code is not OK. Code: %d", httpCode);
+        submit_log("HTTP returned code is not OK. Code: %d", httpCode);
         return HTTPS_REQUEST_FAILED;
       }
       Log.info("%s [%d]: Content size: %d\r\n", __FILE__, __LINE__, https.getSize());
@@ -1185,7 +1186,7 @@ static https_request_err_e downloadAndShow(const char *url)
       {
         Log.error("%s [%d]: Receiving failed. Bad file size\r\n", __FILE__, __LINE__);
 
-        submit_log("HTTPS request error. Returned code - %d, available bytes - %d, received bytes - %d", httpCode, https.getSize(), counter);
+        submit_log("HTTP request error. Returned code - %d, available bytes - %d, received bytes - %d", httpCode, https.getSize(), counter);
 
         return HTTPS_REQUEST_FAILED;
       }
@@ -1225,7 +1226,7 @@ static https_request_err_e downloadAndShow(const char *url)
         Log.error("%s [%d]: Receiving failed. Readed: %d\r\n", __FILE__, __LINE__, counter);
 
         // display_show_msg(const_cast<uint8_t *>(default_icon), API_SIZE_ERROR);
-        submit_log("HTTPS request error. Returned code - %d, available bytes - %d, received bytes - %d in %d iterations", httpCode, https.getSize(), counter, iteration_counter);
+        submit_log("HTTP request error. Returned code - %d, available bytes - %d, received bytes - %d in %d iterations", httpCode, https.getSize(), counter, iteration_counter);
 
         return HTTPS_WRONG_IMAGE_SIZE;
       }
@@ -1526,7 +1527,7 @@ static void getDeviceCredentials(const char *url)
               {
                 showMessageWithLogo(WIFI_WEAK, "");
               }
-              submit_log("HTTPS received code is not OK. Code: %d", httpCode);
+              submit_log("HTTP received code is not OK. Code: %d", httpCode);
             }
           }
           else

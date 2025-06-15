@@ -87,9 +87,15 @@ parameter:
 static void EPD_WaitUntilIdle(void)
 {
     Debug("e-Paper busy\r\n");
-	do{
-		DEV_Delay_ms(5);
-	}while(!(DEV_Digital_Read(EPD_BUSY_PIN)));
+    uint8_t i = 0;
+    while(!(DEV_Digital_Read(EPD_BUSY_PIN)) && i<40) {
+		DEV_Delay_ms(50);
+        i++;
+        Debug("   waiting\r\n");
+    }
+    if (i>=40) {
+        Debug("e-Paper busy timeout reached\r\n"); 
+    }
 	DEV_Delay_ms(5);
     Debug("e-Paper busy release\r\n");
 }
